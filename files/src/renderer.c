@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
-#include "types.h"
-#include "geometry.h"
-#include "math.h"
+#include "../include/types.h"
+#include "../include/geometry.h"
+#include "../include/math.h"
 
 Pixel framebuffer[HEIGHT][WIDTH];
 float zbuffer[HEIGHT][WIDTH];

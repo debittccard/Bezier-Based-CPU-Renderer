@@ -1,4 +1,4 @@
-#include "types.h"
+#include "../include/types.h"
 #include <math.h>
 Vec3 bezier_eval(BezierCubic b, float t){
 

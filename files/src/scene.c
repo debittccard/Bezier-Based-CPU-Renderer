@@ -1,12 +1,12 @@
-#include "scene.h"
+#include "../include/scene.h"
 #include <stdio.h>
 #include <time.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
-#include "math.h"
-#include "geometry.h"
-#include "renderer.h"
+#include "../include/math.h"
+#include "../include/geometry.h"
+#include "../include/renderer.h"
 
 int culled_count = 0;
 static int rendered_count = 0;

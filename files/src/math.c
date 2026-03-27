@@ -1,5 +1,5 @@
 #include <math.h>
-#include "types.h"
+#include "../include/types.h"
 
 /* =========================
    VECTOR OPS
@@ -125,9 +125,7 @@ Mat4 mat_rotate_z(float angle){
     return m;
 }
 
-/* =========================
-   PROJECTION
-   ========================= */
+
 
 Mat4 mat_projection(float fov, float aspect, float near, float far){
     Mat4 m = {0};
@@ -143,9 +141,7 @@ Mat4 mat_projection(float fov, float aspect, float near, float far){
     return m;
 }
 
-/* =========================
-   LOOK AT (your original)
-   ========================= */
+
 
 Mat4 mat_look_at(Vec3 eye, Vec3 target, Vec3 up){
     Vec3 f = normalize((Vec3){

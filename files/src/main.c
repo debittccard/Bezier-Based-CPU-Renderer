@@ -2,11 +2,11 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
-#include "types.h"
-#include "math.h"
-#include "geometry.h"
-#include "renderer.h"
-#include "scene.h"
+#include "../include/types.h"
+#include "../include/math.h"
+#include "../include/geometry.h"
+#include "../include/renderer.h"
+#include "../include/scene.h"
 
 static Vec3 parse_vec3(const char *str){
     Vec3 v = {0};
