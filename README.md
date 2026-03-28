@@ -1,7 +1,9 @@
 # Bezier-Based-CPU-Tube-Renderer
 
 A CPU-based 3D renderer that generates and rasterizes tube geometry from cubic Bezier curves using a custom software graphics pipeline.
-
+## Renders Produced
+<img src="./Images/art.png" width="1000">
+<img src="./Images/helix5mil.png" width="1000">
 ## Features
 
 - Bezier curve -> tube mesh generation  
@@ -154,7 +156,5 @@ Custom Bezier curve
 * All four curve points must be provided together
 * Unknown arguments will terminate execution with a usage message
 
-## Renders Produced
-<img src="./Images/art.png" width="1000">
-<img src="./Images/helix5mil.png" width="1000">
+
 
