@@ -96,7 +96,11 @@ typedef struct {
     float translate_x;
     float translate_y;
     float translate_z;
-    float angle_step;  // how much angle changes per tube
+    float multTranslatex;
+    float multTranslatey;
+    float multTranslatez;
+    float angle_step;
+    float translate_step; 
 } TransformConfig;
 typedef struct {
     CameraConfig camera;
@@ -146,7 +150,8 @@ typedef struct {
     int tube_count;
     int thread_id;
     float rx, ry, rz, scale, tx, ty, tz, angle_step;
-    float rcx, rcy, rcz; 
+    float rcx, rcy, rcz;
+    float mtx, mty, mtz, translate_step;
 } ShadowJob;
 
 

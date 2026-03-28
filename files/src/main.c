@@ -35,6 +35,10 @@ static void print_usage(const char *prog){
     printf("  -tx   <float>  translate x (default 0.0)\n");
     printf("  -ty   <float>  translate y (default 0.0)\n");
     printf("  -tz   <float>  translate z (default 0.0)\n");
+    printf("  -mtx  <float>  translate x multiplier per tube (default 0.0)\n");
+    printf("  -mty  <float>  translate y multiplier per tube (default 0.0)\n");
+    printf("  -mtz  <float>  translate z multiplier per tube (default 0.0)\n");
+    printf("  -ts   <float>  translate step per tube index (default 0.0)\n");   
     printf("  -cx   <float>  camera x (default 0.0)\n");
     printf("  -cy   <float>  camera y (default 0.0)\n");
     printf("  -cz   <float>  camera z (default -200.0)\n");
@@ -66,6 +70,8 @@ int main(int argc, char **argv){
     float tx           = 0.0f;
     float ty           = 0.0f;
     float tz           = 0.0f;
+    float mtx = 0.0f, mty = 0.0f, mtz = 0.0f;
+    float translate_step = 0.0f;
     float cx           = 0.0f;
     float cy           = 0.0f;
     float cz           = -200.0f;
@@ -110,6 +116,10 @@ int main(int argc, char **argv){
         else if(!strcmp(argv[i], "-tx")    && i+1<argc) tx         = atof(argv[++i]);
         else if(!strcmp(argv[i], "-ty")    && i+1<argc) ty         = atof(argv[++i]);
         else if(!strcmp(argv[i], "-tz")    && i+1<argc) tz         = atof(argv[++i]);
+        else if(!strcmp(argv[i], "-mtx") && i+1<argc) mtx          = atof(argv[++i]);
+        else if(!strcmp(argv[i], "-mty") && i+1<argc) mty          = atof(argv[++i]);
+        else if(!strcmp(argv[i], "-mtz") && i+1<argc) mtz          = atof(argv[++i]);
+        else if(!strcmp(argv[i], "-ts")  && i+1<argc) translate_step = atof(argv[++i]);
         else if(!strcmp(argv[i], "-cx")    && i+1<argc) cx         = atof(argv[++i]);
         else if(!strcmp(argv[i], "-cy")    && i+1<argc) cy         = atof(argv[++i]);
         else if(!strcmp(argv[i], "-cz")    && i+1<argc) cz         = atof(argv[++i]);

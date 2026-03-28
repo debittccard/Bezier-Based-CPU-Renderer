@@ -29,8 +29,13 @@ static void *shadow_thread_func(void *arg){
         if(!aabb_in_frustum_planes(te->bounds, job->planes)) continue;
 
         float angle = i * job->angle_step;
+        float ti = i * job->translate_step;
+
         Mat4 model = matMult(
-            mat_translate(job->tx, job->ty, job->tz),
+            mat_translate(
+                job->tx + job->mtx * ti,
+                job->ty + job->mty * ti,
+                job->tz + job->mtz * ti),
             matMult(
                 matMult(mat_rotate_x(job->rx * angle),
                     matMult(mat_rotate_y(job->ry * angle),
@@ -121,6 +126,10 @@ static void shadow_pass(SceneConfig *scene, Plane light_planes[6]){
         jobs[t].ty         = scene->transform.translate_y;
         jobs[t].tz         = scene->transform.translate_z;
         jobs[t].angle_step = scene->transform.angle_step;
+        jobs[t].mtx            = scene->transform.multTranslatex;
+        jobs[t].mty            = scene->transform.multTranslatey;
+        jobs[t].mtz            = scene->transform.multTranslatez;
+        jobs[t].translate_step = scene->transform.translate_step;
         memcpy(jobs[t].planes, light_planes, sizeof(Plane)*6);
 
         jobs[t].shadow_local = malloc(SHADOW_H * SHADOW_W * sizeof(float));
@@ -172,20 +181,22 @@ void render_scene(SceneConfig scene){
     // world transform + AABB cache
     clock_gettime(CLOCK_MONOTONIC, &t0);
     for(int i=0; i<scene.tube_count; i++){
-        TubeEntry *te = &scene.tubes[i];
-        float angle = i * scene.transform.angle_step;
+       TubeEntry *te = &scene.tubes[i];
+    float angle = i * scene.transform.angle_step;
+    float ti = i * scene.transform.translate_step;  // add this
 
-        Mat4 model = matMult(
-            mat_translate(scene.transform.translate_x,
-                          scene.transform.translate_y,
-                          scene.transform.translate_z),
-            matMult(
-                matMult(mat_rotate_x(scene.transform.rotate_x * angle),
-                    matMult(mat_rotate_y(scene.transform.rotate_y * angle),
-                            mat_rotate_z(scene.transform.rotate_z * angle))),
-                mat_scale(scene.transform.scale,
-                          scene.transform.scale,
-                          scene.transform.scale)));
+    Mat4 model = matMult(
+        mat_translate(
+            scene.transform.translate_x + scene.transform.multTranslatex * ti,
+            scene.transform.translate_y + scene.transform.multTranslatey * ti,
+            scene.transform.translate_z + scene.transform.multTranslatez * ti),
+        matMult(
+            matMult(mat_rotate_x(scene.transform.rotate_x * angle),
+                matMult(mat_rotate_y(scene.transform.rotate_y * angle),
+                        mat_rotate_z(scene.transform.rotate_z * angle))),
+            mat_scale(scene.transform.scale,
+                      scene.transform.scale,
+                      scene.transform.scale)));
 
         Vec4 p0=mat4_mul_vec4(model,(Vec4){te->curve.p0.x,te->curve.p0.y,te->curve.p0.z,1.0f});
         Vec4 p1=mat4_mul_vec4(model,(Vec4){te->curve.p1.x,te->curve.p1.y,te->curve.p1.z,1.0f});
