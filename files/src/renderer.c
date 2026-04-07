@@ -120,7 +120,7 @@ void drawTriangleGouraudShadow(
     // reject invalid
     if(!isfinite(z0)||!isfinite(z1)||!isfinite(z2)) return;
 
-    // AREA CULL (huge)
+    // AREA CULL
     int area = (x1-x0)*(y2-y0) - (y1-y0)*(x2-x0);
     if(area <= 0) return;          // backface
     if(area < 4 && area > -4) return;          // tiny triangle kill
