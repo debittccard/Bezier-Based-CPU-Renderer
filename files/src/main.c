@@ -82,6 +82,7 @@ static void print_usage(const char *prog){
     printf("  -fog           enable exponential depth cue\n");
     printf("  -fog           enable exponential depth fog\n");
     printf("  -fogdensity <float> fog density (default 0.15, range 0.01–1.0)\n");
+    printf("  -fogcolor <r,g,b>   fog colour (default 180,200,255)\n");
     printf("  -vignette [str]  enable vignette with optional strength (default 0.4)\n");
     printf("  -o    <string> output file (default output.ppm)\n");
 
@@ -183,6 +184,7 @@ int main(int argc, char **argv){
         else if(!strcmp(argv[i], "-fogcolor") && i+1<argc){ sscanf(argv[++i], "%d,%d,%d", &fog_r, &fog_g, &fog_b); use_fog = 1; }
         else if(!strcmp(argv[i], "-fog")) { use_fog = 1; }
         else if(!strcmp(argv[i], "-fogdensity") && i+1<argc) fog_density = atof(argv[++i]);
+        else if(!strcmp(argv[i], "-fogcolor") && i+1<argc) {sscanf(argv[++i], "%d,%d,%d", &fog_r, &fog_g, &fog_b);use_fog = 1;}
         else if(!strcmp(argv[i], "-vignette")){ use_vignette = 1;if(i+1<argc && argv[i+1][0]!='-') vignette_strength = atof(argv[++i]);}
         else { printf("unknown arg: %s\n", argv[i]); print_usage(argv[0]); return 1; }
     }
