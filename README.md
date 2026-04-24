@@ -19,12 +19,12 @@ A professional-grade, high-performance 3D software rendering engine written in C
 
 The system is designed as a modular pipeline where data flows from abstract mathematical definitions to a discrete pixel grid.
 
-  * **[`types.h`](./include/types.h)**: Defines the core data structures (`Vec3`, `Mat4`, `AABB`) and engine constants, with runtime-configurable resolutions and thread count.
-  * **[`main.c`](./src/main.c)**: Command-line interface, system initialisation, and the final output supersampling/downscaling plus all post-processing effects (background, fog, ACES, vignette, DOF, bloom).
-  * **[`geometry.c`](./src/geometry.c)**: Implementation of Cubic Bezier evaluation (de Casteljau) and stable reference frame generation.
-  * **[`scene.c`](./src/scene.c)**: Orchestrates thread management (`pthreads`) and high-level pass logic (Shadow Pass vs. Render Pass) with dynamic thread count.
-  * **[`renderer.c`](./src/renderer.c)**: The rasterisation engine, managing scan-line filling, Gouraud shading, shadow depth-testing, and LOD distance culling.
-  * **[`math.c`](./src/math.c)**: Linear algebra suite including matrix multiplication, vertex transformation, and frustum culling logic.
+  * **[`types.h`](./files/include/types.h)**: Defines the core data structures (`Vec3`, `Mat4`, `AABB`) and engine constants, with runtime-configurable resolutions and thread count.
+  * **[`main.c`](./files/src/main.c)**: Command-line interface, system initialisation, and the final output supersampling/downscaling plus all post-processing effects (background, fog, ACES, vignette, DOF, bloom).
+  * **[`geometry.c`](./files/src/geometry.c)**: Implementation of Cubic Bezier evaluation (de Casteljau) and stable reference frame generation.
+  * **[`scene.c`](./files/src/scene.c)**: Orchestrates thread management (`pthreads`) and high-level pass logic (Shadow Pass vs. Render Pass) with dynamic thread count.
+  * **[`renderer.c`](./files/src/renderer.c)**: The rasterisation engine, managing scan-line filling, Gouraud shading, shadow depth-testing, and LOD distance culling.
+  * **[`math.c`](./files/src/math.c)**: Linear algebra suite including matrix multiplication, vertex transformation, and frustum culling logic.
 
 -----
 
