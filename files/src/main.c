@@ -8,6 +8,9 @@
 #include "../include/renderer.h"
 #include "../include/scene.h"
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "../include/stb_image_write.h"
+
 static Vec3 parse_vec3(const char *str){
     Vec3 v = {0};
     sscanf(str, "%f,%f,%f", &v.x, &v.y, &v.z);
@@ -52,8 +55,12 @@ static void print_usage(const char *prog){
     printf("  -iw   <int>    internal render width (default 3840)\n");
     printf("  -ih   <int>    internal render height (default 2160)\n");
     printf("  -rgb  <flag>   enable rainbow coloring\n");
+    printf("  -cycles <float>  rainbow cycles across all tubes (use with -rgb)(default 1.0)\n");
     printf("  -color r,g,b   set solid color (0-255)\n");
+    printf("  -png  <flag>   output as PNG instead of PPM\n");
+    printf("  -aces <flag>   apply ACES filmic tone mapping\n");
     printf("  -o    <string> output file (default output.ppm)\n");
+
 }
 
 int main(int argc, char **argv){
@@ -96,6 +103,9 @@ int main(int argc, char **argv){
     int   custom_r = 255, custom_g = 255, custom_b = 255;
     int   custom_focus = 0; 
     float focusx = 0.0f, focusy = 0.0f, focusz = 0.0f;
+    int   use_png = 0;  
+    int use_aces = 0; 
+    float rainbow_cycles = 1.0f;   
 
     /* parse args */
     for(int i = 1; i < argc; i++){
@@ -140,6 +150,9 @@ int main(int argc, char **argv){
         else if(!strcmp(argv[i], "-ih") && i+1<argc) internal_h    = atoi(argv[++i]);
         else if(!strcmp(argv[i], "-rgb")){use_rgb                  = 1;}
         else if(!strcmp(argv[i], "-color") && i+1<argc){sscanf(argv[++i], "%d,%d,%d", &custom_r, &custom_g, &custom_b);use_custom_color = 1;}
+        else if(!strcmp(argv[i], "-png")){use_png                  = 1;}
+        else if(!strcmp(argv[i], "-aces")) { use_aces = 1; }
+        else if(!strcmp(argv[i], "-cycles") && i+1<argc) rainbow_cycles = atof(argv[++i]);
         else { printf("unknown arg: %s\n", argv[i]); print_usage(argv[0]); return 1; }
     }
 
@@ -156,6 +169,21 @@ int main(int argc, char **argv){
 
     printf("tubes=%d seg=%d sid=%d scale=%.2f ry=%.2f rz=%.2f step=%.4f\n",
            num_tubes, segments, sides, scale, ry, rz, angle_step);
+
+
+    if(use_png) {
+        // If user hasn't overridden the default name, use .png
+        if(strcmp(output, "output.ppm") == 0) {
+            strcpy(output, "output.png");
+        } else {
+            // If user gave a name but it has no extension, append .png
+            size_t len = strlen(output);
+            if(len > 4 && strcmp(output + len - 4, ".ppm") != 0 &&
+                        strcmp(output + len - 4, ".png") != 0) {
+                strcat(output, ".png");
+            }
+        }
+    }
 
     /* initialise renderer with user-chosen internal resolution */
     renderer_init(internal_w, internal_h);
@@ -218,13 +246,24 @@ int main(int argc, char **argv){
         tubes[i].tube_props.sides    = sides;
         tubes[i].tube_props.radius   = radius;
 
-        if(use_rgb){
-            float phase = (float)i / (float)num_tubes * 2.0f * 3.14159f;
-            tubes[i].color_r = (int)(127.5f * (1.0f + sinf(phase)));
-            tubes[i].color_g = (int)(127.5f * (1.0f + sinf(phase + 2.094f)));
-            tubes[i].color_b = (int)(127.5f * (1.0f + sinf(phase + 4.188f)));
+        if(use_rgb) {
+            float hue = fmodf((float)i / (float)num_tubes * rainbow_cycles * 360.0f, 360.0f);
+            float s = 1.0f, v = 1.0f;      // full saturation & brightness
+            float c = v * s;
+            float x = c * (1.0f - fabsf(fmodf(hue / 60.0f, 2.0f) - 1.0f));
+            float m = v - c;
+            float rp, gp, bp;
+            if(hue < 60) { rp = c; gp = x; bp = 0; }
+            else if(hue < 120) { rp = x; gp = c; bp = 0; }
+            else if(hue < 180) { rp = 0; gp = c; bp = x; }
+            else if(hue < 240) { rp = 0; gp = x; bp = c; }
+            else if(hue < 300) { rp = x; gp = 0; bp = c; }
+            else { rp = c; gp = 0; bp = x; }
+            tubes[i].color_r = (int)((rp + m) * 255.0f);
+            tubes[i].color_g = (int)((gp + m) * 255.0f);
+            tubes[i].color_b = (int)((bp + m) * 255.0f);
         }
-        else if(use_custom_color){
+                else if(use_custom_color){
             tubes[i].color_r = custom_r;
             tubes[i].color_g = custom_g;
             tubes[i].color_b = custom_b;
@@ -252,50 +291,125 @@ int main(int argc, char **argv){
 
     /* output downsampling using get_framebuffer() */
     Pixel *fb = get_framebuffer();
-    FILE *f = fopen(output, "wb");
-    if(!f){ fprintf(stderr, "failed to open %s\n", output); free(tubes); return 1; }
-    fprintf(f, "P6\n%d %d\n255\n", out_w, out_h);
 
-    for(int y = 0; y < out_h; y++){
-        for(int x = 0; x < out_w; x++){
-            float u  = (x + 0.5f) / out_w;
-            float v  = (y + 0.5f) / out_h;
-            float du = 0.5f / out_w;
-            float dv = 0.5f / out_h;
+    // ACES tone mapping
+    if(use_aces) {
+        for(int y = 0; y < render_height; y++) {
+            Pixel *row = fb + y * render_width;
+            for(int x = 0; x < render_width; x++) {
+                float r = row[x].r / 255.0f;
+                float g = row[x].g / 255.0f;
+                float b = row[x].b / 255.0f;
 
-            int sx0 = (int)((u-du)*render_width);
-            int sx1 = (int)((u+du)*render_width);
-            int sy0 = (int)((v-dv)*render_height);
-            int sy1 = (int)((v+dv)*render_height);
-            
-            if(sx0 < 0) sx0 = 0;
-            if(sx1 > render_width-1) sx1 = render_width-1;
-            if(sy0 < 0) sy0 = 0;
-            if(sy1 > render_height-1) sy1 = render_height-1;
-            if(sx0 > sx1) sx0 = sx1;
-            if(sy0 > sy1) sy0 = sy1;
+                // ACES approximation (Narkowicz 2015)
+                r = (r * (2.51f * r + 0.03f)) / (r * (2.43f * r + 0.59f) + 0.14f);
+                g = (g * (2.51f * g + 0.03f)) / (g * (2.43f * g + 0.59f) + 0.14f);
+                b = (b * (2.51f * b + 0.03f)) / (b * (2.43f * b + 0.59f) + 0.14f);
 
-            int r=0, g=0, b=0, count=0;
-            for(int sy=sy0; sy<=sy1; sy++){
-                long long row_offset = (long long)sy * render_width;
-                for(int sx=sx0; sx<=sx1; sx++){
-                    Pixel *p = &fb[row_offset + sx];
-                    r += p->r;
-                    g += p->g;
-                    b += p->b;
-                    count++;
-                }
+                // Clamp to [0,1]
+                if(r > 1.0f) r = 1.0f; if(r < 0.0f) r = 0.0f;
+                if(g > 1.0f) g = 1.0f; if(g < 0.0f) g = 0.0f;
+                if(b > 1.0f) b = 1.0f; if(b < 0.0f) b = 0.0f;
+
+                row[x].r = (unsigned char)(r * 255.0f);
+                row[x].g = (unsigned char)(g * 255.0f);
+                row[x].b = (unsigned char)(b * 255.0f);
             }
-            unsigned char px[3];
-            px[0] = count ? r/count : 0;
-            px[1] = count ? g/count : 0;
-            px[2] = count ? b/count : 0;
-            fwrite(px, 1, 3, f);
         }
     }
-    fclose(f);
+
+    if(use_png) {
+        /* Allocate flat array for stb_image_write */
+        unsigned char *png_data = (unsigned char *)malloc((size_t)out_w * out_h * 3);
+        if(!png_data){ fprintf(stderr, "png malloc failed\n"); free(tubes); return 1; }
+
+        for(int y = 0; y < out_h; y++){
+            for(int x = 0; x < out_w; x++){
+                float u  = (x + 0.5f) / out_w;
+                float v  = (y + 0.5f) / out_h;
+                float du = 0.5f / out_w;
+                float dv = 0.5f / out_h;
+
+                int sx0 = (int)((u-du)*render_width);
+                int sx1 = (int)((u+du)*render_width);
+                int sy0 = (int)((v-dv)*render_height);
+                int sy1 = (int)((v+dv)*render_height);
+                if(sx0 < 0) sx0 = 0;
+                if(sx1 > render_width-1) sx1 = render_width-1;
+                if(sy0 < 0) sy0 = 0;
+                if(sy1 > render_height-1) sy1 = render_height-1;
+                if(sx0 > sx1) sx0 = sx1;
+                if(sy0 > sy1) sy0 = sy1;
+
+                int r=0, g=0, b=0, count=0;
+                for(int sy=sy0; sy<=sy1; sy++){
+                    long long row_offset = (long long)sy * render_width;
+                    for(int sx=sx0; sx<=sx1; sx++){
+                        Pixel *p = &fb[row_offset + sx];
+                        r += p->r;
+                        g += p->g;
+                        b += p->b;
+                        count++;
+                    }
+                }
+                int idx = (y * out_w + x) * 3;
+                png_data[idx+0] = count ? r/count : 0;
+                png_data[idx+1] = count ? g/count : 0;
+                png_data[idx+2] = count ? b/count : 0;
+            }
+        }
+        if(!stbi_write_png(output, out_w, out_h, 3, png_data, out_w * 3)){
+            fprintf(stderr, "failed to write %s\n", output);
+        }
+        free(png_data);
+    } else {
+        /* Original PPM output */
+        FILE *f = fopen(output, "wb");
+        if(!f){ fprintf(stderr, "failed to open %s\n", output); free(tubes); return 1; }
+        fprintf(f, "P6\n%d %d\n255\n", out_w, out_h);
+
+        for(int y = 0; y < out_h; y++){
+            for(int x = 0; x < out_w; x++){
+                float u  = (x + 0.5f) / out_w;
+                float v  = (y + 0.5f) / out_h;
+                float du = 0.5f / out_w;
+                float dv = 0.5f / out_h;
+
+                int sx0 = (int)((u-du)*render_width);
+                int sx1 = (int)((u+du)*render_width);
+                int sy0 = (int)((v-dv)*render_height);
+                int sy1 = (int)((v+dv)*render_height);
+                if(sx0 < 0) sx0 = 0;
+                if(sx1 > render_width-1) sx1 = render_width-1;
+                if(sy0 < 0) sy0 = 0;
+                if(sy1 > render_height-1) sy1 = render_height-1;
+                if(sx0 > sx1) sx0 = sx1;
+                if(sy0 > sy1) sy0 = sy1;
+
+                int r=0, g=0, b=0, count=0;
+                for(int sy=sy0; sy<=sy1; sy++){
+                    long long row_offset = (long long)sy * render_width;
+                    for(int sx=sx0; sx<=sx1; sx++){
+                        Pixel *p = &fb[row_offset + sx];
+                        r += p->r;
+                        g += p->g;
+                        b += p->b;
+                        count++;
+                    }
+                }
+                unsigned char px[3] = {
+                    count ? r/count : 0,
+                    count ? g/count : 0,
+                    count ? b/count : 0
+                };
+                fwrite(px, 1, 3, f);
+            }
+        }
+        fclose(f);
+    }
+
     free(tubes);
-    renderer_cleanup();    /* frees framebuffer and zbuffer */
+    renderer_cleanup();    /* free framebuffer and zbuffer */
 
     return 0;
 }
