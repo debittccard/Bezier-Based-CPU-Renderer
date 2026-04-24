@@ -8,6 +8,8 @@ A professional-grade, high-performance 3D software rendering engine written in C
 ## Renders Produced
 
 <img src="./Images/art.png" width="1000">
+<img src="./Images/cinematic_final.png" width="1000">
+<img src="./Images/ultimate_test.png" width="1000">
 <img src="./Images/helix5mil.png" width="1000">
 <img src="./Images/blue.png" width="1000">
 
