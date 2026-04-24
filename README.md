@@ -31,7 +31,7 @@ The system is designed as a modular pipeline where data flows from abstract math
 
 The engine does not store static meshes. Instead, it extrudes geometry along a **Cubic Bézier Curve**.
 
-A Bézier curve is defined by four control points: \( P_0, P_1, P_2, P_3 \). The function `bezier_eval` calculates the 3D position at any time \( t \in [0,1] \) using **de Casteljau’s algorithm** – successive linear interpolations that are numerically stable and equivalent to evaluating the Bernstein polynomials.
+A Bézier curve is defined by four control points: $$( P_0, P_1, P_2, P_3 )$$. The function `bezier_eval` calculates the 3D position at any time $$\( t \in [0,1] \)$$ using **de Casteljau’s algorithm**: successive linear interpolations that are numerically stable and equivalent to evaluating the Bernstein polynomials.
 
 ```c
 Vec3 bezier_eval(BezierCubic b, float t){
@@ -53,9 +53,9 @@ Vec3 bezier_eval(BezierCubic b, float t){
 
 To create a tube we also need an orientation. The `bezier_tangent` function computes the first derivative:
 
-\[
+$$
 B'(t) = 3(1-t)^2 (P_1-P_0) + 6(1-t)t (P_2-P_1) + 3t^2 (P_3-P_2)
-\]
+$$
 
 That tangent serves as the “forward” direction. By taking the cross product of the tangent and a chosen up‑vector (with a fallback when they are parallel) we generate a **stable local coordinate frame** at every segment. A 2D circle of vertices is then rotated to be always perpendicular to the path, preventing the tube from becoming flat or twisted.
 
@@ -74,14 +74,14 @@ for(int t = 0; t < NUM_THREADS; t++){
 }
 ```
 
-  * **Shadow Pass** – All threads render their tubes from the light’s point of view into private depth buffers that are then merged into the global `shadow_map`.
-  * **Render Pass** – All threads render from the camera’s perspective, performing depth‑tests against the shared `zbuffer` and occlusion tests against the `shadow_map`.
+  * **Shadow Pass** - All threads render their tubes from the light’s point of view into private depth buffers that are then merged into the global `shadow_map`.
+  * **Render Pass** - All threads render from the camera’s perspective, performing depth‑tests against the shared `zbuffer` and occlusion tests against the `shadow_map`.
 
 ### 3. Frustum Culling (`math.c`)
 
 To maintain interactive performance with millions of tubes, geometry outside the view frustum is discarded early.
 
-Every tube is enclosed in an **Axis‑Aligned Bounding Box (AABB)**. The function `aabb_in_frustum` transforms the eight corners of this box into **clip space** using the View‑Projection matrix. If at least one corner falls inside the canonical clip volume \([-1,1] \times [-1,1] \times [0,1]\), the tube is considered potentially visible. Otherwise the thread skips it entirely, saving enormous amounts of vertex and pixel processing.
+Every tube is enclosed in an **Axis‑Aligned Bounding Box (AABB)**. The function `aabb_in_frustum` transforms the eight corners of this box into **clip space** using the View‑Projection matrix. If at least one corner falls inside the canonical clip volume $$\([-1,1] \times [-1,1] \times [0,1]\)$$, the tube is considered potentially visible. Otherwise the thread skips it entirely, saving enormous amounts of vertex and pixel processing.
 
 ```c
 int aabb_in_frustum(AABB box, Mat4 mvp){
@@ -106,8 +106,8 @@ Once geometry is projected to screen space, `renderer.c` fills the resulting tri
 
 The engine uses **Gouraud shading**: lighting intensity is computed per vertex and then linearly interpolated across the triangle. For every pixel the pipeline performs:
 
-1. **Z‑Buffer Test** – Compare the pixel’s depth against `zbuffer[y][x]`. If farther, skip.
-2. **Shadow Test** – The light‑space coordinates of the pixel are likewise interpolated. The interpolated depth is compared to the value in the pre‑computed `shadow_map`; if the pixel lies deeper than the stored depth (with a small bias), it is in shadow and its intensity is reduced.
+1. **Z‑Buffer Test** - Compare the pixel’s depth against `zbuffer[y][x]`. If farther, skip.
+2. **Shadow Test** - The light‑space coordinates of the pixel are likewise interpolated. The interpolated depth is compared to the value in the pre‑computed `shadow_map`; if the pixel lies deeper than the stored depth (with a small bias), it is in shadow and its intensity is reduced.
 
 ```c
 // Inside the scanline loop for each pixel
@@ -132,6 +132,31 @@ row[x].r = (unsigned char)(intensity * cr);
 In addition, a **distance‑based LOD** system inside `render_tube` dynamically reduces the segment and side counts for tubes far from the camera, trading detail for speed while preserving visual quality.
 
 ### 5. Supersampling Anti‑Aliasing (SSAA) & Output (`main.c`)
+
+### ACES Filmic Tone Mapping (`main.c`)
+
+Raw linear RGB values can clip harshly in bright areas, losing detail in highlights and making the image look synthetic. The engine optionally applies an **ACES filmic tone map** – a curve that smoothly rolls off the highlights while preserving shadow detail, giving every render a cinematic, film‑like quality.
+
+The implementation uses the Narkowicz approximation to the ACES Reference Render Transform, a rational function of the form:
+
+$$
+f(x) = \frac{x \cdot (2.51\,x + 0.03)}{x \cdot (2.43\,x + 0.59) + 0.14}
+$$
+
+with constants $$\(a = 2.51\), \(b = 0.03\), \(c = 2.43\), \(d = 0.59\), \(e = 0.14\)$$.
+
+```c
+// ACES applied per‑channel as a fast post‑process
+float r = pixel.r / 255.0f;
+r = (r * (2.51f * r + 0.03f)) / (r * (2.43f * r + 0.59f) + 0.14f);
+// clamp and convert back to 8‑bit
+pixel.r = (unsigned char)(fmaxf(0.0f, fminf(1.0f, r)) * 255.0f);
+```
+#### ACES enabled
+<img src="./Images/ACES.png" width="1000">
+
+#### ACES disabled
+<img src="./Images/noACES.png" width="1000">
 
 The renderer draws to a high‑resolution internal framebuffer (configurable via `-iw`/`-ih`). For each final output pixel, a small region of the high‑res buffer is averaged using a box filter. This is equivalent to a 2×2 ordered‑grid SSAA and removes jagged edges without blurring detail.
 
@@ -205,6 +230,8 @@ The internal and output resolutions are independent, giving users full control o
   * `-ow <int>`: Output image width (default 1920).
   * `-oh <int>`: Output image height (default 1080).
   * `-o <string>`: Output filename (default `output.ppm`).
+  * `-aces`: Applies an ACES filmic tone map to the final image, preventing harsh highlight clipping and giving a cinematic look.
+  * `-cycles <float>`: Controls the number of hue cycles when using `-rgb`. `1.0` (default) gives a single smooth rainbow across all tubes; higher values create more colour loops.
 
 -----
 
