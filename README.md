@@ -8,6 +8,19 @@ A professional-grade, high-performance 3D software rendering engine written in C
 ## Renders Produced
 
 <img src="./Images/art.png" width="1000">
+<img src="./Images/background.png" width 1000>
+
+#### Command:
+
+```bash
+./renderer -t 10000000 \
+-sid 200 -seg 200\
+-aces \
+-cz -70 -lz -70 -ly 2 \
+-color 240,20,30 \
+-threads 8 -iw 7680 -ih 4320 \
+-ow 1920 -oh 1080 -sw 4096 -sh 4096 -png -o stress.png
+```
 <img src="./Images/cinematic_final.png" width="1000">
 
 #### Command:
