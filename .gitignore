@@ -11,3 +11,5 @@ renderer
 
 # VS Code settings
 .vscode/
+.idea/
+qodana.yaml
