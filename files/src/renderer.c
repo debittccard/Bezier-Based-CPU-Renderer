@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <string.h>
 #include "../include/types.h"
 #include "../include/geometry.h"
 #include "../include/math_utils.h"
@@ -305,9 +304,9 @@ void render_tube(BezierCubic b, Mat4 mvp, int segments, int sides,
     Vec3 mid = bezier_eval(b, 0.5f);
     float dist2 = mid.x*mid.x + mid.y*mid.y + (mid.z + 100.0f)*(mid.z + 100.0f);
     if(dist2 > 2000.0f*2000.0f) return;
-    else if(dist2 > 800.0f*800.0f){ segments = 3; sides = 3; }
-    else if(dist2 > 400.0f*400.0f){ segments = 4; sides = 4; }
-    else if(dist2 > 200.0f*200.0f){ segments = 6; sides = 6; }
+    else if(dist2 > 800.0f*800.0f){ segments = 10; sides = 12; }
+    else if(dist2 > 400.0f*400.0f){ segments = 12; sides = 14; }
+    else if(dist2 > 200.0f*200.0f){ segments = 14; sides = 16; }
 
     if(segments < 2) segments = 2;
     if(sides < 3) sides = 3;
