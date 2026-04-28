@@ -41,9 +41,9 @@ static void *shadow_thread_func(void *arg){
                 job->ty + job->mty * ti,
                 job->tz + job->mtz * ti),
             matMult(
-                matMult(mat_rotate_x(job->rx * angle),
-                    matMult(mat_rotate_y(job->ry * angle),
-                            mat_rotate_z(job->rz * angle))),
+                matMult(mat_rotate_x(job->rx * angle + job->rcx),
+                    matMult(mat_rotate_y(job->ry * angle + job->rcy),
+                            mat_rotate_z(job->rz * angle + job->rcz))),
                 mat_scale(job->scale, job->scale, job->scale)));
 
         Mat4 light_mvp = matMult(job->light_vp, model);
@@ -205,18 +205,18 @@ void render_scene(SceneConfig scene){
     float angle = i * scene.transform.angle_step;
     float ti = i * scene.transform.translate_step;
 
-    Mat4 model = matMult(
-        mat_translate(
-            scene.transform.translate_x + scene.transform.multTranslatex * ti,
-            scene.transform.translate_y + scene.transform.multTranslatey * ti,
-            scene.transform.translate_z + scene.transform.multTranslatez * ti),
-        matMult(
-            matMult(mat_rotate_x(scene.transform.rotate_x * angle),
-                matMult(mat_rotate_y(scene.transform.rotate_y * angle),
-                        mat_rotate_z(scene.transform.rotate_z * angle))),
-            mat_scale(scene.transform.scale,
-                      scene.transform.scale,
-                      scene.transform.scale)));
+        Mat4 model = matMult(
+         mat_translate(
+             scene.transform.translate_x + scene.transform.multTranslatex * ti,
+             scene.transform.translate_y + scene.transform.multTranslatey * ti,
+             scene.transform.translate_z + scene.transform.multTranslatez * ti),
+         matMult(
+             matMult(mat_rotate_x(scene.transform.rotate_x * angle + scene.transform.rconst_x),
+                 matMult(mat_rotate_y(scene.transform.rotate_y * angle + scene.transform.rconst_y),
+                         mat_rotate_z(scene.transform.rotate_z * angle + scene.transform.rconst_z))),
+             mat_scale(scene.transform.scale,
+                       scene.transform.scale,
+                       scene.transform.scale)));
 
         Vec4 p0=mat4_mul_vec4(model,(Vec4){te->curve.p0.x,te->curve.p0.y,te->curve.p0.z,1.0f});
         Vec4 p1=mat4_mul_vec4(model,(Vec4){te->curve.p1.x,te->curve.p1.y,te->curve.p1.z,1.0f});
