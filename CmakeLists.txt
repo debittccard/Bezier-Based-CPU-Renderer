@@ -1,0 +1,59 @@
+cmake_minimum_required(VERSION 3.14)
+project(TubeRenderer LANGUAGES C)
+
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
+# ----- Source files -----
+set(SOURCES
+    files/src/main.c
+    files/src/scene.c
+    files/src/renderer.c
+    files/src/geometry.c
+    files/src/math_utils.c
+)
+
+# ----- Include directories -----
+include_directories(
+    files/include
+    files/src
+    include          # atomic_utils.h & timer_utils.h
+)
+
+# ----- Find threading library -----
+if(WIN32)
+    # MSVC + vcpkg (or MinGW with a pthreads shim)
+    find_package(pthreads4w CONFIG REQUIRED)
+    set(THREADS_LIB pthreads4w::pthreads4w)
+else()
+    # Linux / macOS native pthreads
+    find_package(Threads REQUIRED)
+    set(THREADS_LIB Threads::Threads)
+endif()
+
+# ----- Maths library (Unix only) -----
+if(NOT WIN32)
+    set(MATH_LIB m)
+endif()
+
+# ----- Compiler‑specific optimisation -----
+if(MSVC)
+    add_compile_options(/O2 /fp:fast /arch:AVX2)
+else()
+    add_compile_options(-O3 -march=native -ffast-math -funroll-loops)
+endif()
+
+# ----- Executable -----
+add_executable(${PROJECT_NAME} ${SOURCES})
+
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    ${THREADS_LIB}
+    ${MATH_LIB}
+)
+
+# ----- Extra warnings -----
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra)
+elseif(MSVC)
+    target_compile_options(${PROJECT_NAME} PRIVATE /W4)
+endif()
