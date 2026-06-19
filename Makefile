@@ -84,7 +84,9 @@ $(BUILD_DIR):
 # ---------- Clean ----------
 .PHONY: clean
 clean:
-	$(RM) -r $(BUILD_DIR) $(TARGET)
+	$(RM) -r $(BUILD_DIR)   # remove all objects and dependency files
+	$(RM) *.o               # remove any .o files in the project root (if any)
+	$(RM) $(TARGET)         # remove the executable
 	@echo "Cleaned."
 
 # ---------- Help ----------
