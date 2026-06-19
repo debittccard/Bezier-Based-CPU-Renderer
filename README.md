@@ -336,30 +336,95 @@ Bloom adds a soft glow around bright areas. The effect downsamples the framebuff
 
 -----
 
+```markdown
 ## Build Instructions
 
-The engine is written in standard C99 and requires a compiler with `pthread` support (POSIX threads). A Makefile is provided for convenience.
+The renderer is written in **standard C99** (compatible with C11) and uses POSIX threads.  
+You can build it with either **Make** (Linux/macOS/MinGW) or **CMake** (all platforms including MSVC).
+
+---
+
+### Option 1: Make (Linux / macOS / MinGW‑w64)
+
+A `Makefile` is included for users who prefer a traditional build.
 
 ```bash
-# Build the project
-make
+# Build (use -j$(nproc) for parallel compilation)
+make -j$(nproc)
 
 # Clean build artifacts
 make clean
 
-# Optional: Generate LSP database for IDE support (requires 'bear')
+# (Optional) Generate compile_commands.json for LSP/IDE support
 bear -- make
 ```
 
-**Compile Flags Explained:**
+**Compile flags used by the Makefile:**
 
-  * `-O3`: Maximum optimisation.
-  * `-march=native`: Utilises all instruction-set extensions of your CPU (AVX, SSE, etc.).
-  * `-ffast-math`: Relaxes IEEE floating-point compliance for extra speed.
-  * `-flto`: Link-time optimisation for cross-file inlining.
-  * `-pthread`: Links the POSIX threads library.
+| Flag | Purpose |
+|------|---------|
+| `-O3` | Maximum optimisation |
+| `-march=native` | Enable all CPU instruction‑set extensions |
+| `-ffast-math` | Relax IEEE float compliance for speed |
+| `-funroll-loops` | Unroll small loops |
+| `-flto` | Link‑time optimisation |
+| `-pthread` | Link POSIX threads |
 
------
+---
+
+### Option 2: CMake (all platforms)
+
+A `CMakeLists.txt` is provided for a modern, cross‑platform build.  
+It automatically handles compiler flags, threading, and maths linking.
+
+#### Linux / macOS / MinGW‑w64
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+```
+
+#### Windows with MSVC + vcpkg
+
+First install pthreads via vcpkg (one‑time):
+
+```powershell
+git clone https://github.com/Microsoft/vcpkg.git
+cd vcpkg
+.\bootstrap-vcpkg.bat
+.\vcpkg integrate install
+.\vcpkg install pthreads:x64-windows
+```
+
+Then build (replace `[vcpkg-root]` with your actual vcpkg path):
+
+```powershell
+cmake -B build -DCMAKE_BUILD_TYPE=Release `
+      -DCMAKE_TOOLCHAIN_FILE=[vcpkg-root]\scripts\buildsystems\vcpkg.cmake
+cmake --build build --config Release
+```
+
+The executable will be `build/TubeRenderer` (or `build/Release/TubeRenderer.exe` on Windows).
+
+---
+
+### Running the Renderer
+
+```bash
+./build/TubeRenderer -ow 1920 -oh 1080 -png -o output.png
+```
+(On Windows use `.\build\Release\TubeRenderer.exe`.)
+
+---
+
+### Notes
+
+- **Thread count** is auto‑detected; you can override it with `-threads <N>`.
+- **Pthreads** is built‑in on Unix and supplied by vcpkg on Windows – no extra steps required.
+- The **CMake** build applies the same high‑performance flags as the Makefile when possible, adapting them for MSVC automatically.
+```
+
+If you want the entire README restructured or additional sections updated (dependencies, features, etc.), I can do that too.
 
 ## License
 
