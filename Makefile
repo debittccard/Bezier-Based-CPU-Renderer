@@ -21,6 +21,7 @@ endif
 # ---------- Directories (adjust if your layout differs) ----------
 INC_DIRS := files/include files/src include
 SRC_DIRS := files/src
+VPATH := $(SRC_DIRS)
 BUILD_DIR := build
 
 # ---------- Source files ----------
