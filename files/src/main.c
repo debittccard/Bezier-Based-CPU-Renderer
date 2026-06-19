@@ -2,7 +2,9 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _WIN32
 #include <unistd.h> 
+#endif
 #include "../include/types.h"
 #include "../include/math_utils.h"
 #include "../include/geometry.h"
@@ -13,6 +15,23 @@
 #include "../include/stb_image_write.h"
 int shadow_w_arg = 1024;
 int shadow_h_arg = 1024;
+
+
+#include <stdio.h>
+#ifdef _WIN32
+#include <windows.h>
+int get_cpu_count(void) {
+    SYSTEM_INFO si; GetSystemInfo(&si); return (int)si.dwNumberOfProcessors;
+}
+#else
+#include <unistd.h>
+int get_cpu_count(void) {
+    long n = sysconf(_SC_NPROCESSORS_ONLN);
+    if (n < 1) n = sysconf(_SC_NPROCESSORS_CONF);
+    return (n < 1) ? 1 : (int)n;
+}
+#endif
+
 
 extern float *zbuffer;   // so we can read depth for fog
 
@@ -426,8 +445,8 @@ int main(int argc, char **argv){
 
     /* auto detect thread count if not provided */
     if (num_threads_arg <= 0) {
-        long cores = sysconf(_SC_NPROCESSORS_ONLN);
-        num_threads_arg = (cores > 1) ? (int)cores - 1 : 1;   //leave one core free
+        int cores = get_cpu_count();
+        num_threads_arg = (cores > 1) ? cores - 1 : 1;
         if (num_threads_arg > 64) num_threads_arg = 64;
     }
     num_threads = num_threads_arg;

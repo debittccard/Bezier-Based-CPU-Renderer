@@ -1,12 +1,13 @@
 #include "../include/scene.h"
 #include <stdio.h>
-#include <time.h>
-#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>          // vcpkg provides this on Windows
 #include "../include/math_utils.h"
 #include "../include/geometry.h"
 #include "../include/renderer.h"
+#include "../include/atomic_utils.h"
+#include "../include/timer_utils.h"
 
 int culled_count = 0;
 static int rendered_count = 0;
@@ -19,9 +20,7 @@ int num_threads = 8;
 extern int render_width;
 extern int render_height;
 
-static double timespec_to_ms(const struct timespec *t){
-    return (double)t->tv_sec*1000.0 + (double)t->tv_nsec/1e6;
-}
+// timespec_to_ms is now provided by timer_utils.h (removed from here)
 
 static void *shadow_thread_func(void *arg){
     ShadowJob *job = (ShadowJob *)arg;
@@ -55,11 +54,10 @@ static void *shadow_thread_func(void *arg){
                                  te->tube_props.radius,
                                  job->shadow_local);
 
-        int n = __sync_add_and_fetch(&shadowed_count, 1);
+        int n = ATOMIC_ADD_AND_FETCH(&shadowed_count, 1);
         int interval = job->tube_count / 20;
         if(interval>0 && n%interval==0){
-            struct timespec now;
-            clock_gettime(CLOCK_MONOTONIC, &now);
+            TimerStamp now = get_timestamp();
             double elapsed = timespec_to_ms(&now) - shadow_start_ms;
             double eta = (elapsed/n) * (job->tube_count - n);
             printf("shadowed %d / %d | ETA %.1fs\n", n, job->tube_count, eta/1000.0);
@@ -86,7 +84,7 @@ static void *render_thread(void *arg){
         
 
         if(!aabb_in_frustum(te->bounds, job->vp)){
-            __sync_fetch_and_add(&culled_count, 1);
+            ATOMIC_FETCH_AND_ADD(&culled_count, 1);
             continue;
         }
         
@@ -95,11 +93,10 @@ static void *render_thread(void *arg){
                     te->color_r, te->color_g, te->color_b,
                     job->light, &job->tb);
 
-        int n = __sync_add_and_fetch(&rendered_count, 1);
+        int n = ATOMIC_ADD_AND_FETCH(&rendered_count, 1);
         int interval = job->tubes_total / 20;
         if(interval>0 && n%interval==0){
-            struct timespec now;
-            clock_gettime(CLOCK_MONOTONIC, &now);
+            TimerStamp now = get_timestamp();
             double elapsed = timespec_to_ms(&now) - render_start_ms;
             double avg = elapsed/n;
             double eta = avg*(job->tubes_total-n);
@@ -111,8 +108,7 @@ static void *render_thread(void *arg){
 }
 
 static void shadow_pass(SceneConfig *scene, Plane light_planes[6]){
-    struct timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
+    TimerStamp now = get_timestamp();
     shadow_start_ms = timespec_to_ms(&now);
     shadowed_count = 0;
 
@@ -149,7 +145,6 @@ static void shadow_pass(SceneConfig *scene, Plane light_planes[6]){
         jobs[t].shadow_local = malloc((size_t)shadow_h * shadow_w * sizeof(float));
         if(!jobs[t].shadow_local){
             fprintf(stderr, "shadow malloc failed thread %d\n", t);
-            // free previously allocated shadow_local buffers
             for(int k=0; k<t; k++) free(jobs[k].shadow_local);
             free(threads); free(jobs);
             return;
@@ -181,13 +176,12 @@ static void shadow_pass(SceneConfig *scene, Plane light_planes[6]){
     free(jobs);
     free(threads);
 
-    clock_gettime(CLOCK_MONOTONIC, &now);
+    now = get_timestamp();
     printf("shadow pass: %.2f ms\n", timespec_to_ms(&now) - shadow_start_ms);
 }
 
 void render_scene(SceneConfig scene){
-    struct timespec t_total0, t_total1, t0, t1;
-    clock_gettime(CLOCK_MONOTONIC, &t_total0);
+    TimerStamp t_total0 = get_timestamp();
 
     Mat4 proj = mat_projection(scene.camera.fov, (float)render_width / render_height,
                            scene.camera.near_plane, scene.camera.far_plane);
@@ -199,7 +193,7 @@ void render_scene(SceneConfig scene){
     extract_frustum_planes(light_planes, scene.light_vp, scene.light);
 
     // world transform + AABB cache
-    clock_gettime(CLOCK_MONOTONIC, &t0);
+    TimerStamp t0 = get_timestamp();
     for(int i=0; i<scene.tube_count; i++){
        TubeEntry *te = &scene.tubes[i];
     float angle = i * scene.transform.angle_step;
@@ -230,15 +224,15 @@ void render_scene(SceneConfig scene){
         te->bounds = bezier_bounds_adaptive(te->world_curve, te->tube_props.radius,
                                     te->segment_bounds, &te->segment_count);
     }
-    clock_gettime(CLOCK_MONOTONIC, &t1);
+    TimerStamp t1 = get_timestamp();
     printf("world transform: %.2f ms\n", timespec_to_ms(&t1)-timespec_to_ms(&t0));
 
-    clock_gettime(CLOCK_MONOTONIC, &t0);
+    t0 = get_timestamp();
     shadow_pass(&scene, light_planes);
-    clock_gettime(CLOCK_MONOTONIC, &t1);
+    t1 = get_timestamp();
     printf("shadow pass total: %.2f ms\n", timespec_to_ms(&t1)-timespec_to_ms(&t0));
 
-    clock_gettime(CLOCK_MONOTONIC, &t0);
+    t0 = get_timestamp();
     RenderJob *jobs = malloc(num_threads * sizeof(RenderJob));
     pthread_t *threads = malloc(num_threads * sizeof(pthread_t));
     if(!jobs || !threads){
@@ -262,8 +256,7 @@ void render_scene(SceneConfig scene){
     }
 
     rendered_count=0; culled_count=0;
-    struct timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
+    TimerStamp now = get_timestamp();
     render_start_ms = timespec_to_ms(&now);
 
     for(int t=0; t<num_threads; t++)
@@ -274,10 +267,10 @@ void render_scene(SceneConfig scene){
     free(jobs);
     free(threads);
 
-    clock_gettime(CLOCK_MONOTONIC, &t1);
+    t1 = get_timestamp();
     printf("main render: %.2f ms\n", timespec_to_ms(&t1)-timespec_to_ms(&t0));
 
-    clock_gettime(CLOCK_MONOTONIC, &t_total1);
+    TimerStamp t_total1 = get_timestamp();
     printf("total: %.2f ms | culled: %d\n",
            timespec_to_ms(&t_total1)-timespec_to_ms(&t_total0), culled_count);
 }
