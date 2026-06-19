@@ -336,7 +336,7 @@ Bloom adds a soft glow around bright areas. The effect downsamples the framebuff
 
 -----
 
-```markdown
+
 ## Build Instructions
 
 The renderer is written in **standard C99** (compatible with C11) and uses POSIX threads.  
