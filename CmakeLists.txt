@@ -21,15 +21,8 @@ include_directories(
 )
 
 # ----- Find threading library -----
-if(WIN32)
-    # MSVC + vcpkg (or MinGW with a pthreads shim)
-    find_package(pthreads4w CONFIG REQUIRED)
-    set(THREADS_LIB pthreads4w::pthreads4w)
-else()
-    # Linux / macOS native pthreads
-    find_package(Threads REQUIRED)
-    set(THREADS_LIB Threads::Threads)
-endif()
+find_package(Threads REQUIRED)
+set(THREADS_LIB Threads::Threads)
 
 # ----- Maths library (Unix only) -----
 if(NOT WIN32)
