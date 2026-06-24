@@ -422,11 +422,4 @@ The executable will be `build/TubeRenderer` (or `build/Release/TubeRenderer.exe`
 - **Thread count** is auto‑detected; you can override it with `-threads <N>`.
 - **Pthreads** is built‑in on Unix and supplied by vcpkg on Windows – no extra steps required.
 - The **CMake** build applies the same high‑performance flags as the Makefile when possible, adapting them for MSVC automatically.
-```
 
-If you want the entire README restructured or additional sections updated (dependencies, features, etc.), I can do that too.
-
-## License
-
-This source code is provided as an open-source reference for high-performance software rendering techniques.
-```
